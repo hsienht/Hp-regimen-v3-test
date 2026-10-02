@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幽門桿菌治療服藥指南</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+
+<!-- ══ INPUT PANEL ══ -->
+<div class="input-panel">
+
+<!-- ── Preset Manager Panel ── -->
+<div class="mgr-panel" id="mgrPanel">
+  <div class="mgr-title">
+    組套管理
+    <span class="mgr-mode-hint" id="mgrModeHint"></span>
+  </div>
+  <div class="mgr-list" id="mgrList"></div>
+  <div class="mgr-actions">
+    <button class="btn btn-sm primary" id="mgrSaveBtn" style="display:none" onclick="mgrSave()">儲存修改</button>
+    <button class="btn btn-sm warn" id="mgrRevertBtn" style="display:none" onclick="mgrRevert()">回復</button>
+    <button class="btn btn-sm" onclick="closeMgr()">關閉</button>
+  </div>
+  <div class="mgr-hint" id="mgrHint"></div>
+</div>
+
+<!-- ── Drug Manager Panel ── -->
+<div class="drug-panel" id="drugPanel">
+  <div class="drug-panel-title-row">藥品管理</div>
+  <div class="drug-panel-scroll">
+    <div id="dmList"></div>
+    <button class="add-drug-btn" style="margin-top:8px" onclick="dmAddDrug()">＋ 新增藥品</button>
+  </div>
+  <div class="drug-panel-actions">
+    <button class="btn btn-sm primary" id="dmSaveBtn" style="display:none" onclick="saveDrugMgr()">儲存修改</button>
+    <button class="btn btn-sm warn" id="dmRevertBtn" style="display:none" onclick="revertDrugMgr()">回復</button>
+    <button class="btn btn-sm" onclick="cancelDrugMgr()">關閉</button>
+  </div>
+</div>
+
+<div class="panel-inner" id="mainContent">
+  <div class="panel-title">⚕ 幽門桿菌治療設定
+    <span style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn btn-sm" id="resetDefaultsBtn" onclick="resetToDefaults()">恢復預設</button>
+      <button class="btn btn-sm" id="cloudDrugManager" onclick="openDrugMgr()">藥品管理</button>
+      <button class="btn btn-sm" id="mgrToggleBtn" onclick="toggleMgr()">組套管理 ▾</button>
+    </span>
+  </div>
+  <div class="panel-sub-row">
+    <button class="btn btn-sm" onclick="openSeOverlay()">【藥品副作用及注意事項】</button>
+  </div>
+
+  <section id="cloudPanel" hidden>
+    <p><span id="cloudAccount">訪客</span> · <span id="cloudStatus" role="status">準備連接…</span></p>
+    <div class="cloud-actions">
+      <button class="btn btn-sm" id="cloudLogin" onclick="HpCloud.login()">登入</button>
+      <button class="btn btn-sm" id="cloudLogout" hidden onclick="HpCloud.logout()">登出</button>
+      <button class="btn btn-sm" onclick="HpCloud.refresh()">重新取得雲端設定</button>
+      <button class="btn btn-sm" id="cloudSaveNew" hidden onclick="HpCloud.save('user',true)">另存為我的組套</button>
+      <button class="btn btn-sm" id="cloudSavePersonal" hidden onclick="HpCloud.save('user')">更新我的組套</button>
+      <button class="btn btn-sm" id="cloudDeletePersonal" hidden onclick="HpCloud.remove()">刪除我的組套</button>
+      <button class="btn btn-sm" id="cloudSaveSystem" hidden onclick="HpCloud.save('system')">更新系統組套</button>
+      <button class="btn btn-sm" id="cloudSystemManager" hidden onclick="HpCloud.openSystem()">系統組套排序／刪除</button>
+      <button class="btn btn-sm" id="cloudChangePassword" hidden onclick="HpCloud.openPassword()">變更密碼</button>
+      <button class="btn btn-sm" id="cloudNewSystem" hidden onclick="HpCloud.save('system',true)">新增系統組套</button>
+      <button class="btn btn-sm" id="cloudBackup" hidden onclick="HpCloud.backup()">匯出設定備份</button>
+      <button class="btn btn-sm" id="cloudRestore" hidden onclick="HpCloud.restore()">匯入設定</button>
+      <button class="btn btn-sm" id="cloudLegacy" hidden onclick="HpCloud.importLegacy()">匯入此瀏覽器舊設定</button>
+    </div>
+    <p>本次處方僅在此頁面編輯。按下雲端儲存才會更新組套。</p>
+  </section>
+  <div class="sec-label">療程名稱</div>
+  <input id="regimenName" type="text" class="text-input" placeholder="例：鉍劑四合一處方" oninput="onRegimenNameInput()">
+
+  <div class="sec-label">選擇組套</div>
+  <div class="preset-grid" id="presetGrid"></div>
+  <div class="preset-action-row" id="presetActionRow">
+    <button class="btn btn-sm primary" id="saveModBtn" style="display:none" onclick="saveCurrentPreset()">儲存修改</button>
+    <button class="btn btn-sm warn" id="revertBtn" style="display:none" onclick="revertToLastSaved()">回復</button>
+    <button class="btn btn-sm" onclick="saveAsNewPreset()">另存為新組套</button>
+  </div>
+
+  <div class="sec-label">藥物清單</div>
+  <div class="phase-toggle-row">
+    <label class="toggle-switch"><input type="checkbox" id="phasedToggle" onchange="togglePhased()"><span class="toggle-track"></span></label>
+    <span class="toggle-label">兩階段療程</span>
+    <select class="phase-dur-select" id="phaseDurSelect" style="display:none" onchange="setPhaseDur(this.value)">
+      <option value="7-7">7 + 7 天</option>
+      <option value="5-5">5 + 5 天</option>
+    </select>
+  </div>
+  <div id="phaseSections"></div>
+
+  <div class="sec-label">基本設定</div>
+  <div class="settings-grid">
+    <div class="sf"><label>療程天數</label><input id="duration" type="number" value="14" min="1" max="60" oninput="onDurationInput()"></div>
+    <div class="sf"><label>診所 / 醫院</label><input id="clinicName" type="text" placeholder="診所名稱" oninput="renderPreview()"></div>
+  </div>
+  <div class="sf" style="margin-top:8px"><label>提醒事項</label>
+    <textarea id="notes" placeholder="例：&#10;1. 大便顏色可能暫時變黑灰色 (鉍劑)。" oninput="onNotesInput()"></textarea>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-primary" style="flex:1" onclick="window.print()">列印 / 儲存 PDF</button>
+    <button class="btn btn-danger" onclick="clearAll()">清除</button>
+  </div>
+</div><!-- panel-inner -->
+</div><!-- input-panel -->
+
+<!-- ══ PREVIEW PANEL ══ -->
+<div class="preview-panel">
+  <div class="preview-paper" id="previewPaper">
+    <div class="preview-title">幽門桿菌治療 服藥指南</div>
+    <div class="empty-hint">請選擇組套或新增藥物</div>
+  </div>
+  <!-- Side effects overlay (covers preview panel) -->
+  <div class="side-effects-overlay" id="seOverlay">
+    <div class="se-ol-header">
+      <span>藥品副作用及注意事項</span>
+      <button class="btn btn-sm" onclick="closeSeOverlay()">✕ 關閉</button>
+    </div>
+    <div class="se-ol-body" id="seOverlayContent"></div>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+
+<dialog id="cloudLoginDialog">
+  <form id="cloudLoginForm" onsubmit="event.preventDefault();HpCloud.signIn()">
+    <h3>登入</h3>
+    <label>Email <input name="email" type="email" autocomplete="username" required></label>
+    <label>密碼 <input name="password" type="password" autocomplete="current-password" required></label>
+    <p id="cloudAuthStatus" role="status"></p>
+    <button type="submit">登入</button>
+    <button type="button" id="cloudResetRequest" onclick="HpCloud.requestReset()">忘記密碼</button>
+    <button type="button" onclick="document.getElementById('cloudLoginDialog').close()">取消</button>
+  </form>
+</dialog>
+<script src="js/config.js"></script>
+<script src="js/defaults.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+<dialog id="cloudRestoreDialog">
+  <h3>匯入設定</h3>
+  <p>匯入為目前帳號的個人組套。缺少藥品規格時會停止匯入。</p>
+  <input id="cloudRestoreFile" type="file" accept=".json,application/json">
+  <label>匯入方式 <select id="cloudRestoreMode"><option value="merge">合併：保留現有同名組套</option><option value="replace">取代：替換所有個人組套</option></select></label>
+  <label><input type="checkbox" id="cloudIncludeSystem">也將備份中的系統組套加入我的組套</label>
+  <button type="button" onclick="HpCloud.restoreFile()">檢查並匯入組套</button>
+  <button type="button" id="cloudRestoreDrugs" hidden onclick="HpCloud.restoreDrugFile()">Admin：由此備份更新共用藥品檔</button>
+  <button type="button" onclick="document.getElementById('cloudRestoreDialog').close()">關閉</button>
+</dialog>
+<dialog id="cloudSystemDialog">
+  <h3>系統組套管理</h3>
+  <p>排序儲存後供所有人使用。刪除前會再次確認，至少保留一個系統組套。</p>
+  <ol id="cloudSystemList"></ol>
+  <button type="button" onclick="HpCloud.saveSystemOrder()">儲存排序</button>
+  <button type="button" onclick="document.getElementById('cloudSystemDialog').close()">關閉</button>
+</dialog>
+<dialog id="cloudPasswordDialog">
+  <form id="cloudPasswordForm" onsubmit="event.preventDefault();HpCloud.updatePassword()">
+    <h3>設定新密碼</h3>
+    <label>新密碼 <input type="password" name="password" minlength="8" autocomplete="new-password" required></label>
+    <label>再次輸入 <input type="password" name="confirmPassword" minlength="8" autocomplete="new-password" required></label>
+    <p id="cloudPasswordStatus" role="status"></p>
+    <button type="submit" id="cloudPasswordSubmit">更新密碼</button>
+    <button type="button" onclick="document.getElementById('cloudPasswordDialog').close()">取消</button>
+  </form>
+</dialog>
+<script src="js/transfer.js"></script>
+<script src="js/cloud.js"></script>
+</body>
+</html>
