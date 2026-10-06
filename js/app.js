@@ -214,6 +214,7 @@ function renderPresets(){
     <div class="cloud-actions"><button type="button" class="btn btn-sm" ${active?'':'disabled'} aria-pressed="${starred}" onclick="toggleFavorite()">${starred?'★ 移除常用':'☆ 加入常用'}</button><button type="button" class="btn btn-sm" onclick="setCustomMode()">自訂組合</button></div>
     <p class="favorite-help">常用清單保存在此瀏覽器，依目前帳號分開，不會跨裝置同步。</p>`;
   document.getElementById('localTools').hidden=cloudConfigured();
+  document.getElementById('localSaveAsNew').hidden=cloudConfigured();
 }
 
 function syncDirtyBtns(){
