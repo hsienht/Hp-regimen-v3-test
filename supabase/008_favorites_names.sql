@@ -26,7 +26,7 @@ create table public.user_favorites (
  unique(user_id,system_id),unique(user_id,personal_id)
 );
 alter table public.user_favorites enable row level security;
-revoke all on public.user_favorites from anon;
+revoke all on public.user_favorites from public,anon,authenticated;
 grant select,insert,delete on public.user_favorites to authenticated;
 create policy favorites_read on public.user_favorites for select to authenticated using(user_id=auth.uid());
 create policy favorites_delete on public.user_favorites for delete to authenticated using(user_id=auth.uid());

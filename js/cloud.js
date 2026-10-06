@@ -45,7 +45,7 @@ const HpCloud = (() => {
   function draw(){
     document.getElementById('personalTools').hidden=!session;
     document.getElementById('adminTools').hidden=role!=='admin';
-    if(!session)document.getElementById('personalTools').open=false;
+    if(!session){document.getElementById('personalTools').open=false;document.getElementById('cloudSaveDialog').close();}
     if(role!=='admin')document.getElementById('adminTools').open=false;
     document.getElementById('cloudLogin').hidden=!!session;
     document.getElementById('cloudSaveEntry').hidden=!session;
