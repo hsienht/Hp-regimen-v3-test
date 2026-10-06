@@ -187,14 +187,37 @@ function syncFormToR(){
   if(R.isPhased&&R.phaseDurations)pdSel.value=R.phaseDurations[0]+'-'+R.phaseDurations[1];
 }
 
+let presetCategory='system';
+function presetScope(p){return p._cloud?.scope==='user'?'personal':p._cloud?.scope==='system'?'system':DEFAULT_PRESETS.some(x=>x.id===p.id)?'system':'personal';}
+function presetLabel(p){return p.name+(presetScope(p)==='system'?'（系統）':'（個人）');}
+function favoriteKey(){return 'hp_v3_favorites_'+(window.HP_CLOUD_CONFIG?.url||'local')+'_'+(window.hpFavoriteAccount||'guest');}
+function readFavorites(){try{const ids=JSON.parse(localStorage.getItem(favoriteKey())||'[]');return Array.isArray(ids)?ids.filter(x=>typeof x==='string'):[];}catch{return [];}}
+function toggleFavorite(){
+  if(!activePresetId||!allPresets.some(p=>p.id===activePresetId))return;
+  const ids=readFavorites(),next=ids.includes(activePresetId)?ids.filter(id=>id!==activePresetId):[...ids,activePresetId];
+  try{localStorage.setItem(favoriteKey(),JSON.stringify(next));}catch{alert('無法保存常用清單，請檢查瀏覽器儲存設定。');return;}
+  renderPresets();
+}
+function selectPresetCategory(value){presetCategory=value;renderPresets();}
+function choosePreset(id){if(id)confirmLoadPreset(id);renderPresets();}
 function renderPresets(){
-  const grid=document.getElementById('presetGrid');
-  grid.innerHTML=allPresets.map(p=>
-    `<button class="preset-btn${activePresetId===p.id?' active':''}" onclick="confirmLoadPreset('${p.id}')">${esc(p.name.replace(/（[^）]*）/g,'').replace(/\([^)]*\)/g,'').trim())}${p._cloud?(p._cloud.scope==='user'?' · 我的':' · 系統'):''}</button>`
-  ).join('')+`<button class="preset-btn${!activePresetId?' active':''}" onclick="setCustomMode()">自訂組合</button>`;
+  const grid=document.getElementById('presetGrid'),favorites=readFavorites();
+  const list=allPresets.filter(p=>presetCategory==='all'||(presetCategory==='favorites'?favorites.includes(p.id):presetScope(p)===presetCategory));
+  const active=allPresets.find(p=>p.id===activePresetId),starred=favorites.includes(activePresetId);
+  const groups=[['favorites','★ 常用組套'],['system','系統組套'],['personal','個人組套'],['all','全部組套']];
+  const option=p=>`<option value="${esc(p.id)}" ${activePresetId===p.id?'selected':''}>${esc(presetLabel(p))}</option>`;
+  const options=presetCategory==='all'?['system','personal'].map(scope=>`<optgroup label="${scope==='system'?'系統組套':'個人組套'}">${list.filter(p=>presetScope(p)===scope).map(option).join('')}</optgroup>`).join(''):list.map(option).join('');
+  grid.innerHTML=`<div class="preset-tabs" role="group" aria-label="組套分類">${groups.map(([id,label])=>`<button type="button" class="btn btn-sm${presetCategory===id?' primary':''}" aria-pressed="${presetCategory===id}" onclick="selectPresetCategory('${id}')">${label}</button>`).join('')}</div>
+    <label class="preset-select-label" for="presetSelect">${groups.find(x=>x[0]===presetCategory)?.[1]}</label>
+    <select id="presetSelect" class="text-input" onchange="choosePreset(this.value)"><option value="">${list.length?'請選擇組套':'此分類尚無組套'}</option>${options}</select>
+    <div class="preset-current" aria-live="polite">目前：${active?esc(presetLabel(active)):'自訂組合'}</div>
+    <div class="cloud-actions"><button type="button" class="btn btn-sm" ${active?'':'disabled'} aria-pressed="${starred}" onclick="toggleFavorite()">${starred?'★ 移除常用':'☆ 加入常用'}</button><button type="button" class="btn btn-sm" onclick="setCustomMode()">自訂組合</button></div>
+    <p class="favorite-help">常用清單保存在此瀏覽器，依目前帳號分開，不會跨裝置同步。</p>`;
+  document.getElementById('localTools').hidden=cloudConfigured();
 }
 
 function syncDirtyBtns(){
+  if(window.hpSyncCloudControls)window.hpSyncCloudControls();
   document.getElementById('saveModBtn').style.display=(isDirty&&activePresetId&&!cloudConfigured())?'':'none';
   document.getElementById('revertBtn').style.display=isDirty?'':'none';
 }

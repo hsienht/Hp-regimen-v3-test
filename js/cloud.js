@@ -37,15 +37,24 @@ const HpCloud = (() => {
     clean.id=p.id;clean._cloud={scope,id:row.id,version:row.version};return clean;
   }
   function apply(){
+    window.hpFavoriteAccount=session?.user.id||null;
     allPresets=[...system.map(r=>decode(r,'system')),...personal.map(r=>decode(r,'user'))];
     renderPresets();syncDirtyBtns();draw();
   }
   function draw(){
+    document.getElementById('personalTools').hidden=!session;
+    document.getElementById('adminTools').hidden=role!=='admin';
+    if(!session)document.getElementById('personalTools').open=false;
+    if(role!=='admin')document.getElementById('adminTools').open=false;
     document.getElementById('cloudLogin').hidden=!!session;
     document.getElementById('cloudLogout').hidden=!session;
     document.getElementById('cloudSaveNew').hidden=!session;
     document.getElementById('cloudSavePersonal').hidden=!session;
     document.getElementById('cloudDeletePersonal').hidden=!session;
+    const scope=allPresets.find(p=>p.id===activePresetId)?._cloud?.scope;
+    document.getElementById('cloudSavePersonal').disabled=scope!=='user';
+    document.getElementById('cloudDeletePersonal').disabled=scope!=='user';
+    document.getElementById('cloudSaveSystem').disabled=scope!=='system';
     document.getElementById('cloudSaveSystem').hidden=role!=='admin';
     document.getElementById('cloudNewSystem').hidden=role!=='admin';
     document.getElementById('cloudDrugManager').hidden=role!=='admin';
@@ -57,6 +66,7 @@ const HpCloud = (() => {
     document.getElementById('cloudChangePassword').hidden=!session;
     document.getElementById('cloudAccount').textContent=session?`${session.user.email} (${role})`:'訪客';
   }
+  if(enabled)window.hpSyncCloudControls=draw;
   async function refresh(){
     const request=++epoch, userId=session?.user.id;
     status('讀取雲端設定中…');
