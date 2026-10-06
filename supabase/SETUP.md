@@ -63,3 +63,12 @@
 - https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail
 - https://supabase.com/docs/reference/javascript/auth-onauthstatechange
 - https://supabase.com/docs/reference/javascript/auth-updateuser
+
+
+## 測試版：帳號常用與名稱防重
+
+先下載目前測試設定備份，在 `hp-regimen-v3-test` 執行 `008_preflight.sql`（唯讀）。若列出同名資料，先手動修改名稱，不自動刪除。沒有重複才整份執行 `008_favorites_names.sql`（一次性），再整份執行 `009_verify_favorites_names.sql`（結尾 rollback）。正式專案暫不執行。
+
+更新頁面後登入，先按「重新取得雲端設定」。個人功能可搬移原帳號此瀏覽器常用清單；合併不刪本機清單。登入常用跨裝置同步，訪客常用仍只在此瀏覽器。系統／個人組套刪除會移除對應常用。
+
+備份 v2 包含常用來源與名稱，不包含其他帳號清單；v1 仍可匯入。匯入個人組套後按來源／名稱對應常用，找不到或有多個對應時提示未加入。常用採合併；若個人組套使用取代模式，原個人項目的常用因刪除而移除，再套用備份常用。兩個 RPC 分別交易：若個人匯入成功但常用失敗，會明示部分完成，可重試合併。

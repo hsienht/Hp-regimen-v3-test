@@ -50,9 +50,7 @@
   <div class="panel-title">⚕ 幽門桿菌治療設定
 
   </div>
-  <div class="panel-sub-row">
-    <button class="btn btn-sm" onclick="openSeOverlay()">【藥品副作用及注意事項】</button>
-  </div>
+
 
   <section id="cloudPanel" hidden>
     <p><span id="cloudAccount">訪客</span> · <span id="cloudStatus" role="status">準備連接…</span></p>
@@ -70,6 +68,7 @@
         <button class="btn btn-sm" id="cloudBackup" hidden onclick="HpCloud.backup()">匯出設定備份</button>
         <button class="btn btn-sm" id="cloudRestore" hidden onclick="HpCloud.restore()">匯入設定</button>
         <button class="btn btn-sm" id="cloudLegacy" hidden onclick="HpCloud.importLegacy()">匯入此瀏覽器舊設定</button>
+        <button class="btn btn-sm" id="cloudFavoriteMigration" hidden onclick="HpCloud.migrateFavorites()">搬移本瀏覽器常用清單</button>
         <button class="btn btn-sm" id="cloudChangePassword" hidden onclick="HpCloud.openPassword()">變更密碼</button>
       </div>
     </details>
@@ -82,7 +81,7 @@
         <button class="btn btn-sm" id="cloudDrugManager" onclick="openDrugMgr()">藥品管理</button>
       </div>
     </details>
-    <p>本次處方僅在此頁面編輯。按下雲端儲存才會更新組套。</p>
+    <p>本次修改不會自動上傳；請按「儲存組套」選擇另存或更新。</p>
   </section>
   <details class="function-group" id="localTools">
     <summary>本機設定管理</summary>
@@ -95,7 +94,7 @@
   <div class="sec-label">療程名稱</div>
   <input id="regimenName" type="text" class="text-input" placeholder="例：鉍劑四合一處方" oninput="onRegimenNameInput()">
 
-  <div class="sec-label">選擇組套</div>
+  <div class="section-heading"><div class="sec-label">選擇組套</div><button class="btn btn-sm primary" id="cloudSaveEntry" hidden onclick="HpCloud.openSave()">儲存組套</button></div>
   <div class="preset-grid" id="presetGrid"></div>
   <div class="preset-action-row" id="presetActionRow">
     <button class="btn btn-sm primary" id="saveModBtn" style="display:none" onclick="saveCurrentPreset()">儲存修改</button>
@@ -103,7 +102,7 @@
     <button class="btn btn-sm" id="localSaveAsNew" onclick="saveAsNewPreset()">另存為新組套</button>
   </div>
 
-  <div class="sec-label">藥物清單</div>
+  <div class="section-heading"><div class="sec-label">藥物清單</div><button class="btn btn-sm" onclick="openSeOverlay()">藥品副作用及注意事項</button></div>
   <div class="phase-toggle-row">
     <label class="toggle-switch"><input type="checkbox" id="phasedToggle" onchange="togglePhased()"><span class="toggle-track"></span></label>
     <span class="toggle-label">兩階段療程</span>
@@ -173,6 +172,15 @@
   <button type="button" onclick="HpCloud.restoreFile()">檢查並匯入組套</button>
   <button type="button" id="cloudRestoreDrugs" hidden onclick="HpCloud.restoreDrugFile()">Admin：由此備份更新共用藥品檔</button>
   <button type="button" onclick="document.getElementById('cloudRestoreDialog').close()">關閉</button>
+</dialog>
+<dialog id="cloudSaveDialog">
+  <h3>儲存組套</h3>
+  <p>另存會建立個人組套；更新只修改目前載入的個人組套。共用組套請至系統管理。</p>
+  <div class="cloud-actions">
+    <button class="btn primary" onclick="document.getElementById('cloudSaveDialog').close();HpCloud.save('user',true)">另存為個人組套</button>
+    <button class="btn" id="cloudSavePersonalQuick" onclick="document.getElementById('cloudSaveDialog').close();HpCloud.save('user')">更新目前個人組套</button>
+    <button class="btn" onclick="document.getElementById('cloudSaveDialog').close()">取消</button>
+  </div>
 </dialog>
 <dialog id="cloudSystemDialog">
   <h3>系統組套管理</h3>

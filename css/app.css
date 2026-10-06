@@ -252,3 +252,16 @@ body{font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;ba
 .admin-tools{border-color:#e5d3ab;background:#fffcf5}
 .admin-tools summary{color:#73551c}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:18px}
+.section-heading .sec-label{margin:0}
+.section-heading .btn{flex-shrink:0}
+#cloudLoginDialog{position:fixed;inset:24px auto auto 24px;margin:0;width:380px;max-width:calc(100vw - 48px);max-height:calc(100dvh - 48px);box-sizing:border-box;padding:24px;overflow:auto;border-radius:14px;box-shadow:0 12px 40px #172d4d33}
+#cloudLoginForm label{font-size:14px;display:block;margin:16px 0}
+#cloudLoginForm input{display:block;width:100%;min-height:44px;margin-top:7px;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font-size:16px;box-sizing:border-box}
+#cloudLoginForm button{min-height:42px;padding:8px 14px;margin:4px 3px;font-size:14px}
+#cloudSaveDialog{border:1px solid #cbd5e1;border-radius:12px;padding:22px;max-width:min(440px,calc(100vw - 32px));box-sizing:border-box}
+@media screen and (max-width:600px){
+ #cloudLoginDialog{inset:16px auto auto 16px;width:calc(100vw - 32px);max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);padding:20px}
+ .section-heading .btn{font-size:11px;padding:7px}
+}

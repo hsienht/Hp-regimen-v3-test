@@ -191,8 +191,9 @@ let presetCategory='system';
 function presetScope(p){return p._cloud?.scope==='user'?'personal':p._cloud?.scope==='system'?'system':DEFAULT_PRESETS.some(x=>x.id===p.id)?'system':'personal';}
 function presetLabel(p){return p.name+(presetScope(p)==='system'?'（系統）':'（個人）');}
 function favoriteKey(){return 'hp_v3_favorites_'+(window.HP_CLOUD_CONFIG?.url||'local')+'_'+(window.hpFavoriteAccount||'guest');}
-function readFavorites(){try{const ids=JSON.parse(localStorage.getItem(favoriteKey())||'[]');return Array.isArray(ids)?ids.filter(x=>typeof x==='string'):[];}catch{return [];}}
+function readFavorites(){if(window.hpFavoriteAccount&&Array.isArray(window.hpCloudFavoriteIds))return window.hpCloudFavoriteIds;try{const ids=JSON.parse(localStorage.getItem(favoriteKey())||'[]');return Array.isArray(ids)?ids.filter(x=>typeof x==='string'):[];}catch{return [];}}
 function toggleFavorite(){
+  if(cloudConfigured()&&window.hpFavoriteAccount)return HpCloud.toggleFavorite();
   if(!activePresetId||!allPresets.some(p=>p.id===activePresetId))return;
   const ids=readFavorites(),next=ids.includes(activePresetId)?ids.filter(id=>id!==activePresetId):[...ids,activePresetId];
   try{localStorage.setItem(favoriteKey(),JSON.stringify(next));}catch{alert('無法保存常用清單，請檢查瀏覽器儲存設定。');return;}
@@ -212,7 +213,7 @@ function renderPresets(){
     <select id="presetSelect" class="text-input" onchange="choosePreset(this.value)"><option value="">${list.length?'請選擇組套':'此分類尚無組套'}</option>${options}</select>
     <div class="preset-current" aria-live="polite">目前：${active?esc(presetLabel(active)):'自訂組合'}</div>
     <div class="cloud-actions"><button type="button" class="btn btn-sm" ${active?'':'disabled'} aria-pressed="${starred}" onclick="toggleFavorite()">${starred?'★ 移除常用':'☆ 加入常用'}</button><button type="button" class="btn btn-sm" onclick="setCustomMode()">自訂組合</button></div>
-    <p class="favorite-help">常用清單保存在此瀏覽器，依目前帳號分開，不會跨裝置同步。</p>`;
+    <p class="favorite-help">${window.hpFavoriteAccount?'常用清單儲存至帳號，可跨裝置同步及備份。':'訪客常用清單保存在此瀏覽器；登入後可使用帳號同步。'}</p>`;
   document.getElementById('localTools').hidden=cloudConfigured();
   document.getElementById('localSaveAsNew').hidden=cloudConfigured();
 }

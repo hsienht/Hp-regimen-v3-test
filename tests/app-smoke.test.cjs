@@ -27,8 +27,8 @@ test('categorized selector preserves complete names and marks system/personal so
  run("selectPresetCategory('personal')");assert.match(elements.get('presetGrid').innerHTML,/我的組套（10 天）（個人）/);
 });
 test('favorites persist per project/account and preserve the current prescription',()=>{
- const {run,elements}=boot({url:'https://test.supabase.co',publishableKey:'public'});
- run("window.hpFavoriteAccount='account-a';const before=JSON.stringify(R);toggleFavorite()");
+ const {run,elements}=boot();
+ run("window.HP_CLOUD_CONFIG={url:'https://test.supabase.co'};window.hpFavoriteAccount='account-a';const before=JSON.stringify(R);toggleFavorite()");
  assert.equal(run('JSON.stringify(R)===before'),true);
  assert.equal(run('readFavorites().includes(activePresetId)'),true);
  run("window.hpFavoriteAccount='account-b';selectPresetCategory('favorites')");
