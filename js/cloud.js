@@ -58,7 +58,7 @@ const HpCloud = (() => {
     document.getElementById('cloudSavePersonal').disabled=scope!=='user';
     document.getElementById('cloudDeletePersonal').disabled=scope!=='user';
     document.getElementById('cloudSaveSystem').disabled=scope!=='system';
-    document.getElementById('cloudSavePersonalQuick').disabled=scope!=='user';
+
     document.getElementById('cloudSaveSystem').hidden=role!=='admin';
     document.getElementById('cloudNewSystem').hidden=role!=='admin';
     document.getElementById('cloudDrugManager').hidden=role!=='admin';
@@ -101,15 +101,15 @@ const HpCloud = (() => {
     status(favoritesReady?'已取得雲端最新版；本次處方修改不會自動上傳':'組套已載入；常用功能尚未就緒，請執行 008 migration');
   }
   async function action(fn,initializing=false,onError=status){try{if(!client&&!initializing)throw Error('尚未連接雲端');await fn();}catch(e){onError(e.message||'雲端操作失敗；本次處方仍保留');}finally{if(enabled)draw();}}
-  async function save(scope,create=false){return action(async()=>{
+  async function save(scope,create=false,options=null){return action(async()=>{
     if(!session)throw Error('請先登入');if(scope==='system'&&role!=='admin')throw Error('需要 Admin 權限');
     const source=allPresets.find(x=>x.id===activePresetId)?._cloud;
     if(!create&&source?.scope!==scope)throw Error(scope==='system'?'請先載入系統組套':'請先載入我的組套');
-    const inputName=create?prompt('新組套名稱',R.name):R.name;if(inputName===null)return;
+    const inputName=options?options.name:(create?prompt('新組套名稱',R.name):R.name);if(inputName===null)return;
     const name=inputName.trim();
     if((scope==='user'?personal:system).some(r=>r.name.trim()===name&&(create||r.id!==source.id)))throw Error('此分類已有同名組套，請使用不同名稱');
     if(!name.trim())throw Error('請輸入組套名稱');
-    if(!confirm(scope==='system'?'將更新所有人共用的系統組套，確定儲存？':'確定將本次設定儲存為個人組套？'))return;
+    if(!options&&!confirm(scope==='system'?'將更新所有人共用的系統組套，確定儲存？':'確定將本次設定儲存為個人組套？'))return;
     const payload={name,regimen_data:template({...R,name})};
     const table=scope==='system'?'system_regimens':'user_regimens';
     if(scope==='user')payload.user_id=session.user.id;
@@ -119,8 +119,9 @@ const HpCloud = (() => {
     else result=await client.from(table).update(payload).eq('id',source.id).eq('version',source.version).select();
     if(result.error?.code==='23505')throw Error('此分類已有同名組套，請使用不同名稱');
     const rows=check(result);if(!rows.length)throw Error('版本已變更或權限不足，請重新載入後再儲存');
+    if(options)options.onStored(name,scope);
     await refresh();loadPreset((scope==='user'?'u:':'s:')+rows[0].id);status('組套已儲存至雲端');
-  });}
+  },false,options?.onError||status);}
   async function remove(){return action(async()=>{
     const source=allPresets.find(x=>x.id===activePresetId)?._cloud;
     if(!session||source?.scope!=='user')throw Error('請先載入我的組套');
@@ -319,8 +320,41 @@ const HpCloud = (() => {
     if(!confirm(`將此瀏覽器 ${entries.length} 個常用組套合併至帳號？本機資料仍保留。`))return;
     check(await client.rpc('hp_merge_favorites',{items:entries}));await refresh();status('本瀏覽器常用清單已合併至帳號');
   });}
-  function openSave(){document.getElementById('cloudSaveDialog').showModal();}
-  return {enabled,template,start,toggleFavorite,migrateFavorites,openSave,refresh:()=>action(refresh),save,remove,openDrugs,saveDrugs,backup,restoreText,restoreFile,restoreDrugFile,importLegacy,
+  let saveBusy=false,saveStored=false;
+  function saveFeedback(message,error=false){const node=document.getElementById('cloudSaveFeedback');node.textContent=message;node.className=error?'dialog-feedback error':'dialog-feedback';document.getElementById('cloudSaveName').setAttribute?.('aria-invalid',String(error));}
+  function saveModeChanged(){
+    if(saveBusy||saveStored)return;
+    const mode=document.getElementById('cloudSaveMode').value;
+    document.getElementById('cloudSaveScopeHint').textContent=mode.startsWith('system')?'系統組套：儲存後影響所有使用者。請確認名稱與處方內容。':'個人組套：只儲存至你的帳號。';
+    document.getElementById('cloudSaveSubmit').textContent=mode.endsWith('new')?'另存新組套':'更新目前組套';saveFeedback('');
+  }
+  function openSave(scope='user',create=true){
+    if(saveBusy)return;
+    if(!session){status('請先登入');return;}
+    const source=allPresets.find(p=>p.id===activePresetId)?._cloud;
+    const modes=[['user-new','另存為個人組套',true],['user-update','更新目前個人組套',source?.scope==='user']];
+    if(role==='admin')modes.push(['system-new','新增系統組套',true],['system-update','更新目前系統組套',source?.scope==='system']);
+    const mode=document.getElementById('cloudSaveMode');mode.innerHTML=modes.map(([value,label,allowed])=>`<option value="${value}" ${allowed?'':'disabled'}>${label}</option>`).join('');
+    const desired=scope+'-'+(create?'new':'update');mode.value=modes.some(x=>x[0]===desired&&x[2])?desired:'user-new';mode.disabled=false;
+    saveStored=false;const input=document.getElementById('cloudSaveName');input.value=R.name;input.disabled=false;
+    const submit=document.getElementById('cloudSaveSubmit');submit.hidden=false;submit.disabled=false;
+    const cancel=document.getElementById('cloudSaveCancel');cancel.textContent='取消';cancel.disabled=false;
+    saveModeChanged();document.getElementById('cloudSaveDialog').showModal();input.focus?.();
+  }
+  function cancelSave(){if(saveBusy)return false;document.getElementById('cloudSaveDialog').close();return true;}
+  async function submitSave(){
+    if(saveBusy||saveStored)return;
+    const mode=document.getElementById('cloudSaveMode'),input=document.getElementById('cloudSaveName'),submit=document.getElementById('cloudSaveSubmit'),cancel=document.getElementById('cloudSaveCancel');
+    const [scope,kind]=mode.value.split('-');if(!['user','system'].includes(scope)||!['new','update'].includes(kind)){saveFeedback('請選擇儲存方式',true);return;}
+    saveBusy=true;mode.disabled=true;input.disabled=true;submit.disabled=true;cancel.disabled=true;saveFeedback('儲存中，請稍候…');
+    await save(scope,kind==='new',{name:input.value,
+      onStored:(name,savedScope)=>{saveStored=true;saveFeedback(`已儲存「${name}」${savedScope==='system'?'（系統）':'（個人）'}。`);},
+      onError:message=>saveFeedback(saveStored?`組套已儲存，但畫面重新載入失敗：${message}。請關閉後重新取得雲端設定，勿重複另存。`:message,!saveStored)
+    });
+    saveBusy=false;cancel.disabled=false;cancel.textContent=saveStored?'完成':'取消';submit.hidden=saveStored;
+    if(!saveStored){mode.disabled=false;input.disabled=false;submit.disabled=false;input.focus?.();input.select?.();}
+  }
+  return {enabled,template,start,toggleFavorite,migrateFavorites,openSave,submitSave,cancelSave,saveModeChanged,refresh:()=>action(refresh),save,remove,openDrugs,saveDrugs,backup,restoreText,restoreFile,restoreDrugFile,importLegacy,
     openSystem,moveSystem,saveSystemOrder,deleteSystem,requestReset,openPassword,updatePassword,
     isAdmin:()=>!!session&&role==='admin',
     restore:()=>document.getElementById('cloudRestoreDialog').showModal(),

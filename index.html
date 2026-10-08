@@ -62,8 +62,8 @@
     <details class="function-group" id="personalTools" hidden>
       <summary>個人功能 <span>組套、備份與帳號</span></summary>
       <div class="cloud-actions">
-        <button class="btn btn-sm primary" id="cloudSaveNew" hidden onclick="HpCloud.save('user',true)">另存為個人組套</button>
-        <button class="btn btn-sm" id="cloudSavePersonal" hidden onclick="HpCloud.save('user')">更新個人組套</button>
+        <button class="btn btn-sm primary" id="cloudSaveNew" hidden onclick="HpCloud.openSave('user',true)">另存為個人組套</button>
+        <button class="btn btn-sm" id="cloudSavePersonal" hidden onclick="HpCloud.openSave('user',false)">更新個人組套</button>
         <button class="btn btn-sm warn" id="cloudDeletePersonal" hidden onclick="HpCloud.remove()">刪除個人組套</button>
         <button class="btn btn-sm" id="cloudBackup" hidden onclick="HpCloud.backup()">匯出設定備份</button>
         <button class="btn btn-sm" id="cloudRestore" hidden onclick="HpCloud.restore()">匯入設定</button>
@@ -75,8 +75,8 @@
     <details class="function-group admin-tools" id="adminTools" hidden>
       <summary>系統管理 <span>管理者專用 · 影響所有使用者</span></summary>
       <div class="cloud-actions">
-        <button class="btn btn-sm" id="cloudSaveSystem" hidden onclick="HpCloud.save('system')">更新系統組套</button>
-        <button class="btn btn-sm" id="cloudNewSystem" hidden onclick="HpCloud.save('system',true)">新增系統組套</button>
+        <button class="btn btn-sm" id="cloudSaveSystem" hidden onclick="HpCloud.openSave('system',false)">更新系統組套</button>
+        <button class="btn btn-sm" id="cloudNewSystem" hidden onclick="HpCloud.openSave('system',true)">新增系統組套</button>
         <button class="btn btn-sm" id="cloudSystemManager" hidden onclick="HpCloud.openSystem()">系統組套排序／刪除</button>
         <button class="btn btn-sm" id="cloudDrugManager" onclick="openDrugMgr()">藥品管理</button>
       </div>
@@ -173,14 +173,20 @@
   <button type="button" id="cloudRestoreDrugs" hidden onclick="HpCloud.restoreDrugFile()">Admin：由此備份更新共用藥品檔</button>
   <button type="button" onclick="document.getElementById('cloudRestoreDialog').close()">關閉</button>
 </dialog>
-<dialog id="cloudSaveDialog">
-  <h3>儲存組套</h3>
-  <p>另存會建立個人組套；更新只修改目前載入的個人組套。共用組套請至系統管理。</p>
-  <div class="cloud-actions">
-    <button class="btn primary" onclick="document.getElementById('cloudSaveDialog').close();HpCloud.save('user',true)">另存為個人組套</button>
-    <button class="btn" id="cloudSavePersonalQuick" onclick="document.getElementById('cloudSaveDialog').close();HpCloud.save('user')">更新目前個人組套</button>
-    <button class="btn" onclick="document.getElementById('cloudSaveDialog').close()">取消</button>
-  </div>
+<dialog id="cloudSaveDialog" aria-labelledby="cloudSaveTitle" oncancel="if(!HpCloud.cancelSave())event.preventDefault()">
+  <form id="cloudSaveForm" onsubmit="event.preventDefault();HpCloud.submitSave()">
+    <h3 id="cloudSaveTitle">儲存組套</h3>
+    <label for="cloudSaveMode">儲存方式</label>
+    <select id="cloudSaveMode" onchange="HpCloud.saveModeChanged()"></select>
+    <label for="cloudSaveName">組套名稱</label>
+    <input id="cloudSaveName" type="text" required maxlength="200" aria-describedby="cloudSaveFeedback">
+    <p id="cloudSaveScopeHint"></p>
+    <p id="cloudSaveFeedback" role="status" aria-live="polite"></p>
+    <div class="cloud-actions">
+      <button type="submit" class="btn primary" id="cloudSaveSubmit">儲存</button>
+      <button type="button" class="btn" id="cloudSaveCancel" onclick="HpCloud.cancelSave()">取消</button>
+    </div>
+  </form>
 </dialog>
 <dialog id="cloudSystemDialog">
   <h3>系統組套管理</h3>

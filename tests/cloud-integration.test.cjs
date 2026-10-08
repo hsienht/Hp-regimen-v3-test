@@ -141,3 +141,24 @@ test('local favorites migration merges cloud membership and retains browser sour
  const {run,db,saved}=await setup();saved.set(run('favoriteKey()'),JSON.stringify(['s:bqt']));await run('HpCloud.migrateFavorites()');
  assert.equal(db.user_favorites.length,1);assert.equal(JSON.parse(saved.get(run('favoriteKey()')))[0],'s:bqt');await run('HpCloud.migrateFavorites()');assert.equal(db.user_favorites.length,1);
 });
+test('save dialog keeps duplicate-name error visible and permits a successful renamed retry',async()=>{
+ const {run,db,elements,calls}=await setup();
+ db.user_regimens.push({id:'44444444-4444-4444-8444-444444444444',user_id:'11111111-1111-4111-8111-111111111111',name:'Existing',version:1,sort_order:0,regimen_data:db.system_regimens[0].regimen_data});
+ await run('HpCloud.refresh()');run("HpCloud.openSave('user',true)");elements.get('cloudSaveName').value='Existing';
+ const before=run('JSON.stringify(R)');await run('HpCloud.submitSave()');
+ assert.equal(elements.get('cloudSaveDialog').open,true);assert.match(elements.get('cloudSaveFeedback').textContent,/同名/);
+ assert.equal(elements.get('cloudSaveName').value,'Existing');assert.equal(elements.get('cloudSaveSubmit').disabled,false);
+ assert.equal(calls.filter(c=>c.op==='insert').length,0);assert.equal(run('JSON.stringify(R)'),before);
+ elements.get('cloudSaveName').value='Renamed';await run('HpCloud.submitSave()');
+ assert.equal(elements.get('cloudSaveDialog').open,true);assert.match(elements.get('cloudSaveFeedback').textContent,/已儲存「Renamed」/);
+ assert.equal(elements.get('cloudSaveCancel').textContent,'完成');assert.equal(elements.get('cloudSaveSubmit').hidden,true);
+ const inserts=calls.filter(c=>c.op==='insert').length;await run('HpCloud.submitSave()');assert.equal(calls.filter(c=>c.op==='insert').length,inserts);
+ run('HpCloud.cancelSave()');assert.equal(elements.get('cloudSaveDialog').open,false);
+});
+test('save dialog preserves draft on version conflict and cancel',async()=>{
+ const {run,db,elements}=await setup();run("HpCloud.openSave('system',false)");db.system_regimens[0].version=2;
+ const before=run('JSON.stringify(R)');await run('HpCloud.submitSave()');
+ assert.equal(elements.get('cloudSaveDialog').open,true);assert.match(elements.get('cloudSaveFeedback').textContent,/版本已變更/);
+ assert.equal(run('JSON.stringify(R)'),before);assert.equal(elements.get('cloudSaveName').disabled,false);
+ run('HpCloud.cancelSave()');assert.equal(elements.get('cloudSaveDialog').open,false);
+});
