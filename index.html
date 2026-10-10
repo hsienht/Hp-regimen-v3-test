@@ -91,10 +91,7 @@
       <button class="btn btn-sm" id="mgrToggleBtn" onclick="toggleMgr()">組套管理 ▾</button>
     </div>
   </details>
-  <div class="sec-label">療程名稱</div>
-  <input id="regimenName" type="text" class="text-input" placeholder="例：鉍劑四合一處方" oninput="onRegimenNameInput()">
-
-  <div class="section-heading"><div class="sec-label">選擇組套</div><button class="btn btn-sm primary" id="cloudSaveEntry" hidden onclick="HpCloud.openSave()">儲存組套</button></div>
+  <div class="section-heading regimen-library-heading"><div class="sec-label">選擇組套</div><button class="btn btn-sm primary" id="cloudSaveEntry" hidden onclick="HpCloud.openSave()">儲存組套</button></div>
   <div class="preset-grid" id="presetGrid"></div>
   <div class="preset-action-row" id="presetActionRow">
     <button class="btn btn-sm primary" id="saveModBtn" style="display:none" onclick="saveCurrentPreset()">儲存修改</button>

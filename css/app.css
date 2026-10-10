@@ -292,3 +292,5 @@ dialog li{margin:12px 0;font-size:13px;overflow-wrap:anywhere}
  dialog button,dialog .btn,dialog .btn-sm,#cloudLoginForm button{min-height:44px}
 }
 @media print{dialog{display:none!important}}
+
+.regimen-library-heading{margin-top:12px;margin-bottom:10px}

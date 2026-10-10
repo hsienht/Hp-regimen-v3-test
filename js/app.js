@@ -53,7 +53,6 @@ let R=dc(allPresets[0]);          // working regimen
 let lastSavedR=dc(allPresets[0]); // snapshot for revert
 let activePresetId=allPresets[0]?.id||null;
 let isDirty=false;
-let regimenNameEdited=false;      // user manually changed the regimen name
 
 // Preset Manager state
 let showMgr=false;
@@ -162,8 +161,7 @@ function resetToDefaults(){
   if(showMgr){showMgr=false;document.getElementById('mgrPanel').classList.remove('open');document.getElementById('mainContent').style.display='';document.getElementById('mgrToggleBtn').textContent='組套管理 ▾';}
   closeDrugMgr();
   R={name:'',isPhased:false,duration:14,notes:'',phases:[{drugs:[]}]};
-  lastSavedR=dc(R);regimenNameEdited=false;openIconEd=null;
-  document.getElementById('regimenName').value='';
+  lastSavedR=dc(R);openIconEd=null;
   document.getElementById('duration').value='';
   document.getElementById('duration').disabled=false;
   document.getElementById('notes').value='';
@@ -177,7 +175,6 @@ function syncMgrBtns(){
 }
 
 function syncFormToR(){
-  document.getElementById('regimenName').value=document.getElementById('regimenName').value||R.name||'';
   document.getElementById('duration').value=totalDays(R);
   document.getElementById('duration').disabled=!!R.isPhased;
   document.getElementById('notes').value=R.notes||'';
@@ -309,7 +306,7 @@ function renderDrugRow(pi,di){
 // ═══════════════════════════════════════════════
 function renderPreview(){
   const paper=document.getElementById('previewPaper');
-  const name=(document.getElementById('regimenName').value||'').trim()||'療程名稱';
+  const name=(R.name||'').trim()||'自訂組合';
   const dur=document.getElementById('duration').value||'14';
   const clinic=(document.getElementById('clinicName').value||'').trim();
   const notes=(document.getElementById('notes').value||'').trim();
@@ -387,8 +384,7 @@ function loadPreset(id){
   const p=allPresets.find(x=>x.id===id);if(!p)return;
   R=dc(p);addUids(R);
   lastSavedR=dc(R);
-  activePresetId=id;isDirty=false;regimenNameEdited=false;openIconEd=null;
-  document.getElementById('regimenName').value=p.name;
+  activePresetId=id;isDirty=false;openIconEd=null;
   document.getElementById('notes').value=p.notes||'';
   document.getElementById('duration').value=totalDays(p);
   const pdSel=document.getElementById('phaseDurSelect');
@@ -403,8 +399,7 @@ function setCustomMode(){
   if(isDirty&&!confirm('目前組套有未儲存的修改，切換至自訂模式將清空藥物清單，確定繼續？'))return;
   R={name:'',isPhased:false,duration:14,notes:'',phases:[{drugs:[]}]};
   lastSavedR=dc(R);
-  activePresetId=null;isDirty=false;regimenNameEdited=false;openIconEd=null;
-  document.getElementById('regimenName').value='';
+  activePresetId=null;isDirty=false;openIconEd=null;
   document.getElementById('duration').value='';
   document.getElementById('duration').disabled=false;
   document.getElementById('notes').value='';
@@ -432,7 +427,6 @@ function saveCurrentPreset(silent){
 function revertToLastSaved(){
   if(!confirm('確定要回復至上次儲存的狀態？'))return;
   R=dc(lastSavedR);addUids(R);isDirty=false;openIconEd=null;
-  document.getElementById('regimenName').value=activePresetId?getPresetName(activePresetId):(R.name||'');
   document.getElementById('notes').value=R.notes||'';
   document.getElementById('duration').value=totalDays(R);
   document.getElementById('duration').disabled=!!R.isPhased;
@@ -445,8 +439,9 @@ function revertToLastSaved(){
 
 function saveAsNewPreset(){
   if(localOnlyGuard())return;
-  const name=(document.getElementById('regimenName').value||'').trim();
-  if(!name){alert('請先輸入療程名稱。');return;}
+  const inputName=prompt('新組套名稱',R.name||'');if(inputName===null)return;
+  const name=inputName.trim();
+  if(!name){alert('請輸入組套名稱。');return;}
   if(allPresets.some(p=>p.name===name)){alert(`已有相同名稱的組套「${name}」，請使用不同名稱。`);return;}
   if(!R.phases.some(ph=>ph.drugs.length>0)){alert('請先新增至少一種藥物。');return;}
   if(R.isPhased&&R.phases.some(ph=>ph.drugs.length===0)){alert('兩階段療程的每個階段都需要至少一種藥物。');return;}
@@ -455,17 +450,15 @@ function saveAsNewPreset(){
   if(!np.isPhased)np.duration=parseInt(document.getElementById('duration').value)||14;
   np.notes=document.getElementById('notes').value;
   allPresets.push(np);savePresets();
-  lastSavedR=dc(R);activePresetId=id;isDirty=false;
+  R.name=name;lastSavedR=dc(R);activePresetId=id;isDirty=false;renderPreview();
   renderPresets();syncDirtyBtns();syncResetBtn();
   alert(`已儲存為新組套：${name}`);
 }
 
-function onRegimenNameInput(){regimenNameEdited=true;R.name=document.getElementById('regimenName').value;markDirty();renderPreview();}
 
 function clearAll(){
   R={name:'',isPhased:false,duration:14,notes:'',phases:[{drugs:[]}]};
   lastSavedR=dc(R);activePresetId=null;isDirty=false;openIconEd=null;
-  document.getElementById('regimenName').value='';
   document.getElementById('duration').value=14;
   document.getElementById('notes').value='';
   document.getElementById('clinicName').value='';
