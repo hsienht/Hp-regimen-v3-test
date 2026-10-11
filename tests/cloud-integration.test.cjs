@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
-async function setup({offline=false,role='admin',signinError=false,resetError=false,rpcError=false}={}){
- const elements=new Map(),saved=new Map(),calls=[];
+async function setup({offline=false,role='admin',signinError=false,resetError=false,rpcError=false,failRefreshAfterWrite=false,favoritesUnavailable=false}={}){
+ const elements=new Map(),saved=new Map(),calls=[],notices=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{value:'',style:{},classList:{add(){},remove(){}},addEventListener(){},innerHTML:'',textContent:'',children:[],replaceChildren(...children){this.children=children},append(...children){this.children.push(...children)},close(){this.closed=true;this.open=false},showModal(){this.open=true},elements:{email:{value:'admin@example.com'},password:{value:'secret'},confirmPassword:{value:''}},files:[]});return elements.get(id);};
  const ctx=vm.createContext({window:{HP_CLOUD_CONFIG:{url:'https://test.supabase.co',publishableKey:'sb_publishable_test',resetRedirectUrl:'https://hsienht.github.io/Hp-regimen/'}},document:{getElementById:element,querySelector:element,createElement:tag=>({tag,children:[],append(...items){this.children.push(...items)},addEventListener(){}})},localStorage:{getItem:k=>saved.get(k)||null,setItem:(k,v)=>saved.set(k,v)},sessionStorage:{},TextEncoder,Date,URL,setTimeout,structuredClone,alert(){},confirm:()=>true,prompt:()=> 'New template',crypto:{randomUUID:()=> '33333333-3333-4333-8333-333333333333'}});
  const run=s=>vm.runInContext(s,ctx);
@@ -13,7 +13,8 @@ async function setup({offline=false,role='admin',signinError=false,resetError=fa
   const filters=[];let op='read',payload;
   const q={select(){return q},order(){return q},eq(k,v){filters.push([k,v]);return q},single:async()=>({data:{role}}),insert(p){op='insert';payload=p;return q},update(p){op='update';payload=p;return q},delete(){op='delete';return q},then(resolve,reject){
    calls.push({table,op,filters,payload});
-   if(offline)return Promise.resolve({error:{message:'offline'}}).then(resolve,reject);
+   if(offline||(failRefreshAfterWrite&&op==='read'&&calls.some(c=>c.op==='insert')))return Promise.resolve({error:{message:'offline'}}).then(resolve,reject);
+   if(favoritesUnavailable&&table==='user_favorites')return Promise.resolve({error:{message:'relation does not exist'}}).then(resolve,reject);
    let rows=db[table].filter(r=>filters.every(([k,v])=>r[k]===v));
    if(op==='insert'){rows=[{...structuredClone(payload),id:payload.id||'44444444-4444-4444-8444-444444444444',version:1}];db[table].push(...rows);}
    if(op==='update'){rows.forEach(r=>Object.assign(r,structuredClone(payload),{version:r.version+1}));}
@@ -33,7 +34,8 @@ async function setup({offline=false,role='admin',signinError=false,resetError=fa
  ctx.fakeSDK={createClient(){calls.push({initialized:true});return client;}};
  run(fs.readFileSync('js/transfer.js','utf8'));
  run(fs.readFileSync('js/cloud.js','utf8').replace("await import('https://esm.sh/@supabase/supabase-js@2.117.2')",'globalThis.fakeSDK').replace('HpCloud.start();',''));
- await run('HpCloud.start()');return {run,db,elements,saved,calls,emitAuth:(event,next=currentSession)=>authCallback(event,next)};
+ ctx.confirm=message=>{notices.push(message);return true;};
+ await run('HpCloud.start()');return {run,db,elements,saved,calls,notices,emitAuth:(event,next=currentSession)=>authCallback(event,next)};
 }
 test('configured startup actually initializes client and reads cloud tables',async()=>{
  const {run,calls,elements}=await setup();assert.ok(calls.some(c=>c.initialized));assert.ok(calls.some(c=>c.table==='system_drugs'));
@@ -161,4 +163,30 @@ test('save dialog preserves draft on version conflict and cancel',async()=>{
  assert.equal(elements.get('cloudSaveDialog').open,true);assert.match(elements.get('cloudSaveFeedback').textContent,/版本已變更/);
  assert.equal(run('JSON.stringify(R)'),before);assert.equal(elements.get('cloudSaveName').disabled,false);
  run('HpCloud.cancelSave()');assert.equal(elements.get('cloudSaveDialog').open,false);
+});
+test('a successful write followed by a failed refresh cannot be submitted again',async()=>{
+ const {run,db,elements,calls}=await setup({failRefreshAfterWrite:true});
+ run("R.duration=10;isDirty=true;HpCloud.openSave('user',true)");
+ const before=run('JSON.stringify(R)');await run('HpCloud.submitSave()');
+ assert.equal(db.user_regimens.length,1);assert.equal(db.user_regimens[0].regimen_data.duration,10);
+ assert.match(elements.get('cloudSaveFeedback').textContent,/已儲存，但畫面重新載入失敗/);
+ assert.equal(elements.get('cloudSaveDialog').open,true);assert.equal(elements.get('cloudSaveSubmit').hidden,true);
+ assert.equal(run('JSON.stringify(R)'),before);await run('HpCloud.submitSave()');
+ assert.equal(calls.filter(c=>c.op==='insert').length,1);
+});
+test('favorites-only replacement preserves the personal library and explains its scope',async()=>{
+ const {run,db,calls,notices}=await setup();await run("HpCloud.save('user',true)");
+ const before=structuredClone(db.user_regimens);
+ await run("HpCloud.restoreText(JSON.stringify(HpTransfer.build(DRUGS_DB,[],[],[{scope:'system',name:allPresets[0].name}])),'replace')");
+ assert.deepEqual(db.user_regimens,before);assert.equal(db.user_favorites.length,1);
+ assert.equal(calls.filter(c=>c.rpc==='hp_import_personal').length,0);
+ assert.match(notices.at(-1),/僅還原常用清單；保留目前所有個人組套/);
+ assert.doesNotMatch(notices.at(-1),/將刪除/);
+});
+test('missing favorites migration leaves regimens usable and prevents incomplete backups',async()=>{
+ const {run,elements,calls}=await setup({favoritesUnavailable:true});
+ assert.equal(run('activePresetId'),'s:bqt');assert.equal(run('R.duration'),14);
+ assert.match(elements.get('cloudStatus').textContent,/常用功能尚未就緒/);
+ run('HpCloud.backup()');assert.match(elements.get('cloudStatus').textContent,/常用清單尚未載入/);
+ await run('HpCloud.toggleFavorite()');assert.equal(calls.filter(c=>c.rpc==='hp_merge_favorites').length,0);
 });

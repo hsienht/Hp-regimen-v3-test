@@ -271,7 +271,7 @@ const HpCloud = (() => {
     if(!prepared.length&&!file.favorites.length)throw Error('檔案中沒有可匯入的組套或常用項目');
     if(file.favorites.length&&!favoritesReady)throw Error('請先執行 008 migration，再匯入常用清單');
     const duplicates=prepared.filter(p=>personal.some(r=>r.name.trim()===p.name)).length;
-    const notice=mode==='replace'?`取代模式：將刪除目前 ${personal.length} 個個人組套，改為檔案中的 ${prepared.length} 個。`:`合併模式：匯入 ${prepared.length-duplicates} 個新組套；保留目前同名的 ${duplicates} 個組套。`;
+    const notice=!prepared.length?'此備份僅還原常用清單；保留目前所有個人組套。':mode==='replace'?`取代模式：將刪除目前 ${personal.length} 個個人組套，改為檔案中的 ${prepared.length} 個。`:`合併模式：匯入 ${prepared.length-duplicates} 個新組套；保留目前同名的 ${duplicates} 個組套。`;
     if(!confirm(notice+'\n只影響目前帳號的個人組套，不更新共用系統組套。確定繼續？'))return;
     const expected_versions=personal.map(r=>({id:r.id,version:r.version})).sort((a,b)=>a.id.localeCompare(b.id));
     const count=prepared.length?check(await client.rpc('hp_import_personal',{templates:prepared,replace_existing:mode==='replace',expected_versions})):0;
